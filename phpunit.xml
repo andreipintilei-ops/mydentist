@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <!--
+            Tests run against real MySQL, not SQLite in-memory.
+
+            This project's data layer is MySQL-specific and the risky parts are
+            exactly the parts SQLite cannot emulate:
+              - utf8mb4_0900_ai_ci accent folding ("iasi" must match "Iași")
+              - a generated `POINT SRID 4326` column with a SPATIAL INDEX
+              - ST_Distance_Sphere / MBRContains radius search
+            On SQLite those either silently behave differently or fail outright,
+            so the suite would be green while the real thing was broken.
+
+            Requires a `mydentist_testing` schema; create it with:
+              CREATE DATABASE mydentist_testing
+                CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+        -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_DATABASE" value="mydentist_testing"/>
+        <env name="DB_URL" value=""/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+    </php>
+</phpunit>
