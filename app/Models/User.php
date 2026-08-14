@@ -54,6 +54,8 @@ class User extends Authenticatable implements PasskeyUser
 
     /**
      * Clinics this user has successfully claimed and now manages (Phase 7).
+     *
+     * @return HasMany<Clinic, $this>
      */
     public function ownedClinics(): HasMany
     {
@@ -70,6 +72,6 @@ class User extends Authenticatable implements PasskeyUser
      */
     public function canModerate(): bool
     {
-        return $this->role?->canModerate() ?? false;
+        return $this->role->canModerate();
     }
 }

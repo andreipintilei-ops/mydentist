@@ -2,12 +2,27 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property int $clinic_id
+ * @property int $day_of_week
+ * @property string|null $opens_at
+ * @property string|null $closes_at
+ * @property bool $is_closed
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read string $day_name
+ * @property-read ?Clinic $clinic
+ */
 class OpeningHour extends Model
 {
+    /** @use HasFactory<Factory<OpeningHour>> */
     use HasFactory;
 
     protected $fillable = [
@@ -30,6 +45,9 @@ class OpeningHour extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<Clinic, $this>
+     */
     public function clinic(): BelongsTo
     {
         return $this->belongsTo(Clinic::class);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Enums\ClinicStatus;
 use App\Http\Controllers\Controller;
 use App\Models\City;
 use App\Models\Clinic;
@@ -9,6 +10,7 @@ use App\Models\Service;
 use App\Services\ClinicSearchService;
 use App\Support\Seo\SeoMeta;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,7 +27,7 @@ class SearchController extends Controller
         // Cities worth offering in the combobox: those with published clinics.
         $cities = City::query()
             ->select('id', 'name', 'slug', 'lat', 'lng')
-            ->whereHas('clinics', fn ($q) => $q->published())
+            ->whereHas('clinics', fn (Builder $q) => $q->where('status', ClinicStatus::Published->value))
             ->orderBy('name')
             ->get();
 

@@ -47,9 +47,17 @@ const mainNavItems = computed<NavItem[]>(() => {
     if (canModerate.value) {
         items.push(
             { title: 'Administrare', href: '/admin', icon: ShieldCheck },
-            { title: 'Moderare', href: '/admin/moderare', icon: ClipboardCheck },
+            {
+                title: 'Moderare',
+                href: '/admin/moderare',
+                icon: ClipboardCheck,
+            },
             { title: 'Clinici', href: '/admin/clinici', icon: Building2 },
-            { title: 'Revendicări', href: '/admin/revendicari', icon: UserCheck },
+            {
+                title: 'Revendicări',
+                href: '/admin/revendicari',
+                icon: UserCheck,
+            },
             { title: 'Recenzii', href: '/admin/recenzii', icon: Star },
             { title: 'Utilizatori', href: '/admin/utilizatori', icon: Users },
             { title: 'Unelte SEO', href: '/admin/seo', icon: Search },

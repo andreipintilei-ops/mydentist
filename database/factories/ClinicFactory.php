@@ -40,7 +40,10 @@ class ClinicFactory extends Factory
 
         // Default coordinates sit on the city centre (jittered) so a clinic made
         // straight from the factory is already mappable; ::inCity() refines it.
-        [$lat, $lng] = $this->jitter($city?->lat ?? 45.9432, $city?->lng ?? 24.9668);
+        // Fall back to Romania's geographic centre when no city exists yet.
+        [$lat, $lng] = $city !== null
+            ? $this->jitter($city->lat, $city->lng)
+            : $this->jitter(45.9432, 24.9668);
 
         return [
             'name' => $name,

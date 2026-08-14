@@ -8,6 +8,7 @@ use App\Models\Clinic;
 use App\Models\OpeningHour;
 use App\Models\Review;
 use App\Models\Service;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
@@ -46,7 +47,7 @@ class DemoClinicSeeder extends Seeder
         $bucuresti = City::where('slug', 'bucuresti')->first();
 
         if (! $iasi || ! $bucuresti) {
-            $this->command?->warn('DemoClinicSeeder skipped: run CitySeeder first (iasi/bucuresti missing).');
+            $this->command->warn('DemoClinicSeeder skipped: run CitySeeder first (iasi/bucuresti missing).');
 
             return;
         }
@@ -59,10 +60,13 @@ class DemoClinicSeeder extends Seeder
         $this->seedCity($iasi, 40, $services);
         $this->seedCity($bucuresti, 30, $services);
 
-        $this->command?->info('Seeded 70 demo clinics (40 Iași, 30 București).');
+        $this->command->info('Seeded 70 demo clinics (40 Iași, 30 București).');
     }
 
-    private function seedCity(City $city, int $count, $services): void
+    /**
+     * @param  Collection<int, Service>  $services
+     */
+    private function seedCity(City $city, int $count, Collection $services): void
     {
         Clinic::factory()
             ->count($count)
@@ -77,7 +81,10 @@ class DemoClinicSeeder extends Seeder
             });
     }
 
-    private function attachServices(Clinic $clinic, $services): void
+    /**
+     * @param  Collection<int, Service>  $services
+     */
+    private function attachServices(Clinic $clinic, Collection $services): void
     {
         $clinic->services()->sync(
             $services->random(fake()->numberBetween(2, 6))->pluck('id')->all()
@@ -118,6 +125,9 @@ class DemoClinicSeeder extends Seeder
         OpeningHour::insert($rows);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function hourRow(int $clinicId, int $day, ?string $opens, ?string $closes, bool $closed = false): array
     {
         $now = Carbon::now();

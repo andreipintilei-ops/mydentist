@@ -8,7 +8,7 @@ namespace App\Support\Seo;
  * identically by <x-seo-head> on every page instead of being hand-written per
  * template (where they drift and rot).
  */
-class SeoMeta
+final class SeoMeta
 {
     /**
      * @param  array<int, array<string, mixed>>  $jsonLd
@@ -25,7 +25,7 @@ class SeoMeta
 
     public static function make(string $title, ?string $description = null): static
     {
-        return new static(title: $title, description: $description);
+        return new self(title: $title, description: $description);
     }
 
     public function canonical(string $url): static

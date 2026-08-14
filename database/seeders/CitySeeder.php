@@ -122,7 +122,7 @@ class CitySeeder extends Seeder
             $countyId = $counties[$code] ?? null;
 
             if (! $countyId) {
-                $this->command?->warn("Skipping {$name}: unknown county code {$code}.");
+                $this->command->warn("Skipping {$name}: unknown county code {$code}.");
 
                 continue;
             }

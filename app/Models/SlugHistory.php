@@ -4,13 +4,26 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $sluggable_type
+ * @property int $sluggable_id
+ * @property string $old_slug
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Model $sluggable
+ */
 class SlugHistory extends Model
 {
     protected $table = 'slug_history';
 
     protected $fillable = ['sluggable_type', 'sluggable_id', 'old_slug'];
 
+    /**
+     * @return MorphTo<Model, $this>
+     */
     public function sluggable(): MorphTo
     {
         return $this->morphTo();

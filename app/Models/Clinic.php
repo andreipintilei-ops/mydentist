@@ -4,16 +4,51 @@ namespace App\Models;
 
 use App\Concerns\RecordsSlugHistory;
 use App\Enums\ClinicStatus;
+use Database\Factories\ClinicFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $slug
+ * @property int $city_id
+ * @property string $address
+ * @property float $lat
+ * @property float $lng
+ * @property string|null $phone
+ * @property string|null $email
+ * @property string|null $website
+ * @property string|null $description
+ * @property ClinicStatus $status
+ * @property bool $cnas_contract
+ * @property bool $is_demo
+ * @property int|null $claimed_by
+ * @property Carbon|null $verified_at
+ * @property float $rating_avg
+ * @property int $rating_count
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read ?string $directions_url
+ * @property-read ?City $city
+ * @property-read Collection<int, Service> $services
+ * @property-read Collection<int, OpeningHour> $openingHours
+ * @property-read Collection<int, ClinicPhoto> $photos
+ * @property-read Collection<int, Review> $reviews
+ * @property-read Collection<int, Claim> $claims
+ * @property-read ?User $owner
+ */
 class Clinic extends Model
 {
+    /** @use HasFactory<ClinicFactory> */
     use HasFactory, RecordsSlugHistory;
 
     protected $fillable = [
@@ -69,31 +104,49 @@ class Clinic extends Model
 
     // ---- Relations -------------------------------------------------------
 
+    /**
+     * @return BelongsTo<City, $this>
+     */
     public function city(): BelongsTo
     {
         return $this->belongsTo(City::class);
     }
 
+    /**
+     * @return BelongsToMany<Service, $this>
+     */
     public function services(): BelongsToMany
     {
         return $this->belongsToMany(Service::class);
     }
 
+    /**
+     * @return HasMany<OpeningHour, $this>
+     */
     public function openingHours(): HasMany
     {
         return $this->hasMany(OpeningHour::class)->orderBy('day_of_week');
     }
 
+    /**
+     * @return HasMany<ClinicPhoto, $this>
+     */
     public function photos(): HasMany
     {
         return $this->hasMany(ClinicPhoto::class)->orderBy('sort_order');
     }
 
+    /**
+     * @return HasMany<Review, $this>
+     */
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
     }
 
+    /**
+     * @return HasMany<Claim, $this>
+     */
     public function claims(): HasMany
     {
         return $this->hasMany(Claim::class);
@@ -101,6 +154,8 @@ class Clinic extends Model
 
     /**
      * The registered user who successfully claimed this listing (Phase 7).
+     *
+     * @return BelongsTo<User, $this>
      */
     public function owner(): BelongsTo
     {
@@ -109,6 +164,10 @@ class Clinic extends Model
 
     // ---- Scopes ----------------------------------------------------------
 
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
     public function scopePublished(Builder $query): Builder
     {
         return $query->where($this->getTable().'.status', ClinicStatus::Published->value);
@@ -116,6 +175,9 @@ class Clinic extends Model
 
     /**
      * Accepts a City model or a city id.
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
      */
     public function scopeInCity(Builder $query, City|int $city): Builder
     {
@@ -134,6 +196,9 @@ class Clinic extends Model
      * ONLY place (besides the clinics migration) that knows about it:
      *   - MySQL 8  : geographic SRID 4326, coordinates are (lat, lng).
      *   - MariaDB  : planar, ST_Distance_Sphere wants (lng, lat).
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
      */
     public function scopeNear(Builder $query, float $lat, float $lng, float $radiusKm = 10): Builder
     {
@@ -151,7 +216,7 @@ class Clinic extends Model
 
         $table = $this->getTable();
 
-        if ($query->getConnection()->getDriverName() === 'mysql') {
+        if (DB::connection($this->getConnectionName())->getDriverName() === 'mysql') {
             // (lat, lng) order; envelope and point both tagged SRID 4326.
             $polygon = $this->boxPolygon($minLat, $minLng, $maxLat, $maxLng);
 
@@ -184,10 +249,13 @@ class Clinic extends Model
      * Clinics whose location falls inside a lat/lng bounding box — the map's
      * current viewport. Index-backed via MBRContains. Same axis-order rules as
      * scopeNear(): MySQL 8 stores (lat, lng), MariaDB stores (lng, lat).
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
      */
     public function scopeInBounds(Builder $query, float $minLat, float $minLng, float $maxLat, float $maxLng): Builder
     {
-        if ($query->getConnection()->getDriverName() === 'mysql') {
+        if (DB::connection($this->getConnectionName())->getDriverName() === 'mysql') {
             $polygon = $this->boxPolygon($minLat, $minLng, $maxLat, $maxLng);
 
             return $query->whereRaw('MBRContains(ST_GeomFromText(?, 4326), location)', [$polygon]);
@@ -250,14 +318,12 @@ class Clinic extends Model
      */
     public function recalculateRating(): void
     {
-        $published = $this->reviews()
-            ->where('status', 'published')
-            ->selectRaw('COUNT(*) AS c, COALESCE(AVG(rating), 0) AS a')
-            ->first();
+        $count = $this->reviews()->where('status', 'published')->count();
+        $avg = (float) $this->reviews()->where('status', 'published')->avg('rating');
 
         $this->forceFill([
-            'rating_count' => (int) $published->c,
-            'rating_avg' => round((float) $published->a, 2),
+            'rating_count' => $count,
+            'rating_avg' => round($avg, 2),
         ])->save();
     }
 }

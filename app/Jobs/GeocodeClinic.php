@@ -27,6 +27,8 @@ class GeocodeClinic implements ShouldQueue
     /**
      * One geocode at a time — reinforces the GeocodingService 1 req/s throttle
      * even if several clinics are queued at once.
+     *
+     * @return array<int, object>
      */
     public function middleware(): array
     {

@@ -74,13 +74,13 @@ class SitemapGenerator
 
         // Counties with at least one published, non-demo clinic.
         County::query()
-            ->whereHas('cities.clinics', fn ($q) => $this->publishedScope($q))
+            ->whereHas('cities.clinics', fn (Builder $q) => $q->where('status', ClinicStatus::Published->value)->where('is_demo', false))
             ->get()
             ->each(fn (County $county) => $urls[] = ['loc' => route('county.show', $county), 'lastmod' => null]);
 
         // Cities with published clinics.
         City::query()
-            ->whereHas('clinics', fn ($q) => $this->publishedScope($q))
+            ->whereHas('clinics', fn (Builder $q) => $q->where('status', ClinicStatus::Published->value)->where('is_demo', false))
             ->get()
             ->each(fn (City $city) => $urls[] = ['loc' => route('city.show', $city), 'lastmod' => null]);
 
@@ -140,14 +140,6 @@ class SitemapGenerator
         return $urls->isEmpty()
             ? [[]] // always emit at least one (empty) clinic sitemap
             : $urls->chunk(self::CHUNK)->map->values()->map->all()->values()->all();
-    }
-
-    /**
-     * @param  Builder<Clinic>  $query
-     */
-    private function publishedScope($query): void
-    {
-        $query->where('status', ClinicStatus::Published->value)->where('is_demo', false);
     }
 
     /**

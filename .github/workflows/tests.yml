@@ -13,6 +13,23 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    # The app uses MySQL/MariaDB spatial functions (POINT, ST_Distance_Sphere,
+    # SPATIAL INDEX), so the test suite needs a real DB — SQLite cannot run it.
+    # MariaDB matches local dev and the driver-aware migrations/scopes.
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "true"
+          MARIADB_DATABASE: mydentist
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -22,7 +39,8 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
+          extensions: pdo_mysql, mbstring, intl, gd, bcmath
           tools: composer:v2
           coverage: none
 
@@ -30,6 +48,9 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
+
+      - name: Create testing database
+        run: mysql -h 127.0.0.1 -P 3306 -u root -e "CREATE DATABASE IF NOT EXISTS mydentist_testing;"
 
       - name: Setup Application
         run: composer setup
