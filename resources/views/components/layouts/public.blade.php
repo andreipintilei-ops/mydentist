@@ -10,6 +10,9 @@
 @props([
     'title' => null,
     'description' => null,
+    // Optional App\Support\Seo\SeoMeta. When present, the seo-head component
+    // renders the full title/canonical/OG/JSON-LD and the simple title is skipped.
+    'seo' => null,
 ])
 
 <!DOCTYPE html>
@@ -18,11 +21,19 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>{{ $title ? $title . ' | ' . config('app.name') : config('app.name') }}</title>
-
-        @if ($description)
-            <meta name="description" content="{{ $description }}">
+        @if (config('directory.google_site_verification'))
+            <meta name="google-site-verification" content="{{ config('directory.google_site_verification') }}">
         @endif
+
+        @isset($seo)
+            <x-seo-head :meta="$seo" />
+        @else
+            <title>{{ $title ? $title . ' | ' . config('app.name') : config('app.name') }}</title>
+
+            @if ($description)
+                <meta name="description" content="{{ $description }}">
+            @endif
+        @endisset
 
         {{-- Match the Inertia root's appearance handling so the two halves of the
              site never flash different themes when a user crosses between them. --}}
@@ -69,6 +80,14 @@
             </header>
 
             <main class="flex-1">
+                @if (session('status'))
+                    <div class="mx-auto w-full max-w-6xl px-4 pt-4">
+                        <div class="border-primary/40 bg-primary/10 text-foreground rounded-lg border p-4 text-sm" role="status">
+                            {{ session('status') }}
+                        </div>
+                    </div>
+                @endif
+
                 {{ $slot }}
             </main>
 

@@ -27,3 +27,6 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Generated sitemaps
+/public/sitemap*.xml

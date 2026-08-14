@@ -38,7 +38,7 @@
               CREATE DATABASE mydentist_testing
                 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
         -->
-        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_CONNECTION" value="mariadb"/>
         <env name="DB_DATABASE" value="mydentist_testing"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>

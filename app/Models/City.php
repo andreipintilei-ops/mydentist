@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\RecordsSlugHistory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class City extends Model
 {
-    use HasFactory;
+    use HasFactory, RecordsSlugHistory;
 
     protected $fillable = [
         'county_id', 'name', 'slug', 'type', 'lat', 'lng', 'population',

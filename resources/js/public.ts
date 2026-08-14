@@ -15,16 +15,19 @@ import { createApp } from 'vue';
 const registry: Record<string, () => Promise<{ default: Component }>> = {
     // Dev-only, rendered by the /_ui-parity route.
     UiParity: () => import('./islands/UiParity.vue'),
-    // Registered as they are built (Phase 6):
-    // ClinicMap:     () => import('./islands/ClinicMap.vue'),
-    // SearchFilters: () => import('./islands/SearchFilters.vue'),
-    // CityCombobox:  () => import('./islands/CityCombobox.vue'),
+    // The /cauta search app: one cohesive island composing the filters, the
+    // Leaflet map and the results list over a shared reactive store.
+    Search: () => import('./islands/Search.vue'),
+    // Single-clinic locator map on the /clinica/{slug} profile.
+    ClinicLocationMap: () => import('./islands/ClinicLocationMap.vue'),
 };
 
 function parseProps(el: HTMLElement): Record<string, unknown> {
     const raw = el.dataset.props;
 
-    if (!raw) return {};
+    if (!raw) {
+        return {};
+    }
 
     try {
         return JSON.parse(raw) as Record<string, unknown>;
@@ -33,6 +36,7 @@ function parseProps(el: HTMLElement): Record<string, unknown> {
             `[islands] Invalid data-props JSON on "${el.dataset.vue}" island.`,
             error,
         );
+
         return {};
     }
 }
@@ -40,12 +44,15 @@ function parseProps(el: HTMLElement): Record<string, unknown> {
 async function mountIsland(el: HTMLElement): Promise<void> {
     const name = el.dataset.vue;
 
-    if (!name) return;
+    if (!name) {
+        return;
+    }
 
     const loader = registry[name];
 
     if (!loader) {
         console.warn(`[islands] No component registered under "${name}".`);
+
         return;
     }
 
