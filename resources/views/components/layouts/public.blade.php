@@ -35,13 +35,15 @@
             @endif
         @endisset
 
-        {{-- Match the Inertia root's appearance handling so the two halves of the
-             site never flash different themes when a user crosses between them. --}}
+        {{-- Apply the saved theme before paint (no flash), reading the same
+             `appearance` cookie the dashboard writes so a choice made anywhere
+             carries across the whole site. HandleAppearance shares $appearance. --}}
         <script>
             (function () {
-                if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    document.documentElement.classList.add('dark');
-                }
+                const appearance = '{{ $appearance ?? 'system' }}';
+                const dark = appearance === 'dark'
+                    || (appearance !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (dark) document.documentElement.classList.add('dark');
             })();
         </script>
 
@@ -69,6 +71,9 @@
                     </a>
 
                     <nav class="flex items-center gap-2" aria-label="Navigare principală">
+                        {{-- Theme toggle island (light / dark / system). --}}
+                        <div data-vue="ThemeToggle" class="flex items-center"></div>
+
                         <x-ui.button href="{{ url('/cauta') }}" variant="ghost" size="sm">
                             Caută
                         </x-ui.button>

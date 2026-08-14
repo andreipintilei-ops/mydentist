@@ -20,6 +20,8 @@ const registry: Record<string, () => Promise<{ default: Component }>> = {
     Search: () => import('./islands/Search.vue'),
     // Single-clinic locator map on the /clinica/{slug} profile.
     ClinicLocationMap: () => import('./islands/ClinicLocationMap.vue'),
+    // Public light/dark/system theme toggle in the header.
+    ThemeToggle: () => import('./islands/ThemeToggle.vue'),
 };
 
 function parseProps(el: HTMLElement): Record<string, unknown> {
