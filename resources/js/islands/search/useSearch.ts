@@ -4,6 +4,7 @@ import type {
     Bounds,
     CityOption,
     ClinicResult,
+    FilterChip,
     Filters,
     SearchProps,
     ServiceOption,
@@ -18,12 +19,16 @@ export interface SearchStore {
     services: ServiceOption[];
     clinics: Ref<ClinicResult[]>;
     count: ComputedRef<number>;
+    /** The server hit its result ceiling, so `count` is a floor, not a total. */
+    capped: Ref<boolean>;
     loading: Ref<boolean>;
     failed: Ref<boolean>;
     bounds: Ref<Bounds | null>;
     center: Ref<[number, number]>;
     zoom: Ref<number>;
     selectedId: Ref<number | null>;
+    activeFilterCount: ComputedRef<number>;
+    chips: ComputedRef<FilterChip[]>;
     setBounds(b: Bounds): void;
     selectCity(city: CityOption | null): void;
     resetFilters(): void;
@@ -44,6 +49,7 @@ export function createSearchStore(props: SearchProps): SearchStore {
     });
 
     const clinics = ref<ClinicResult[]>([]);
+    const capped = ref(false);
     const loading = ref(false);
     const failed = ref(false);
     const bounds = ref<Bounds | null>(null);
@@ -54,11 +60,94 @@ export function createSearchStore(props: SearchProps): SearchStore {
     const center = ref<[number, number]>(
         initialCity ? [initialCity.lat, initialCity.lng] : ROMANIA_CENTER,
     );
-    // Zoom 6 (not 7) so the whole country's width fits the tall map panel on
-    // load — otherwise eastern cities like Iași fall just off the edge.
+    // Zoom 6 (not 7) so the whole country's width fits the map on load —
+    // otherwise eastern cities like Iași fall just off the edge.
     const zoom = ref(initialCity ? 13 : 6);
 
     const count = computed(() => clinics.value.length);
+
+    // Only the filters that live behind the "Filtre" button. `q` and the city
+    // have their own controls in the bar, so counting them would double-report.
+    const activeFilterCount = computed(() => {
+        let n = 0;
+
+        if (filters.service_id) {
+            n++;
+        }
+
+        if (filters.cnas) {
+            n++;
+        }
+
+        if (filters.open_now) {
+            n++;
+        }
+
+        if (filters.min_rating > 0) {
+            n++;
+        }
+
+        return n;
+    });
+
+    // Active filters as removable chips, so their state stays visible on the map
+    // instead of hiding inside a closed panel.
+    const chips = computed<FilterChip[]>(() => {
+        const list: FilterChip[] = [];
+        const city = props.cities.find((c) => c.id === filters.city_id);
+
+        if (city) {
+            list.push({
+                key: 'city',
+                label: city.name,
+                clear: () => selectCity(null),
+            });
+        }
+
+        const service = props.services.find((s) => s.id === filters.service_id);
+
+        if (service) {
+            list.push({
+                key: 'service',
+                label: service.name,
+                clear: () => {
+                    filters.service_id = null;
+                },
+            });
+        }
+
+        if (filters.min_rating > 0) {
+            list.push({
+                key: 'rating',
+                label: `${filters.min_rating}+ stele`,
+                clear: () => {
+                    filters.min_rating = 0;
+                },
+            });
+        }
+
+        if (filters.cnas) {
+            list.push({
+                key: 'cnas',
+                label: 'Contract CNAS',
+                clear: () => {
+                    filters.cnas = false;
+                },
+            });
+        }
+
+        if (filters.open_now) {
+            list.push({
+                key: 'open_now',
+                label: 'Deschis acum',
+                clear: () => {
+                    filters.open_now = false;
+                },
+            });
+        }
+
+        return list;
+    });
 
     // Monotonic request id: a slow response that resolves after a newer one must
     // not overwrite fresher results (the classic search race).
@@ -114,15 +203,20 @@ export function createSearchStore(props: SearchProps): SearchStore {
                 throw new Error(`HTTP ${response.status}`);
             }
 
-            const data = (await response.json()) as { clinics: ClinicResult[] };
+            const data = (await response.json()) as {
+                clinics: ClinicResult[];
+                capped?: boolean;
+            };
 
             if (mine === seq) {
                 clinics.value = data.clinics;
+                capped.value = data.capped === true;
             }
         } catch {
             if (mine === seq) {
                 failed.value = true;
                 clinics.value = [];
+                capped.value = false;
             }
         } finally {
             if (mine === seq) {
@@ -139,7 +233,9 @@ export function createSearchStore(props: SearchProps): SearchStore {
 
     function setBounds(next: Bounds): void {
         bounds.value = next;
-        void runFetch(); // map moves feel laggy if debounced
+        // Fires once per completed pan/zoom (moveend), not per frame, and map
+        // moves feel laggy if debounced — so search straight away.
+        void runFetch();
     }
 
     function selectCity(city: CityOption | null): void {
@@ -148,6 +244,10 @@ export function createSearchStore(props: SearchProps): SearchStore {
         if (city) {
             center.value = [city.lat, city.lng];
             zoom.value = 13;
+            // Drop the old viewport so the filter-driven refetch is city-wide
+            // rather than briefly searching the previous city's box; the
+            // recentre's moveend then re-establishes bounds and searches.
+            bounds.value = null;
         }
     }
 
@@ -160,8 +260,8 @@ export function createSearchStore(props: SearchProps): SearchStore {
         filters.min_rating = 0;
     }
 
-    // Any filter change refetches (debounced). Bounds changes are handled eagerly
-    // in setBounds, so they are intentionally not watched here.
+    // Any filter change refetches (debounced) within the current viewport.
+    // Bounds changes are handled in setBounds, so they are not watched here.
     watch(filters, () => debouncedRefresh());
 
     return {
@@ -170,12 +270,15 @@ export function createSearchStore(props: SearchProps): SearchStore {
         services: props.services,
         clinics,
         count,
+        capped,
         loading,
         failed,
         bounds,
         center,
         zoom,
         selectedId,
+        activeFilterCount,
+        chips,
         setBounds,
         selectCity,
         resetFilters,

@@ -92,6 +92,17 @@ it('filters "open now" against the clinic\'s hours in Romanian time', function (
         ->assertJsonPath('clinics.0.id', $open->id);
 });
 
+it('reports whether the result set hit the cap', function () {
+    Clinic::factory()->count(3)->inCity($this->iasi)->create();
+
+    // Well under the ceiling, so the count is a real total and the UI shows it
+    // as-is rather than as "300+".
+    $this->getJson(route('search.clinics'))
+        ->assertOk()
+        ->assertJsonPath('count', 3)
+        ->assertJsonPath('capped', false);
+});
+
 it('returns the compact clinic shape the map/list expect', function () {
     $clinic = Clinic::factory()->inCity($this->iasi)->create(['cnas_contract' => true]);
     $clinic->services()->attach($this->implant);

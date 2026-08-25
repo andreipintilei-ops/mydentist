@@ -1,14 +1,19 @@
-<x-layouts.public :seo="$seo">
+<x-layouts.public :seo="$seo" :full-bleed="true">
     {{--
         The interactive search app. This page is NOINDEX (see SeoMeta->noindex()
         in SearchController) — it is the application, not an SEO surface. All
         indexable content lives under the Blade taxonomy.
 
+        Full-bleed: the layout drops the footer and hands this element the exact
+        leftover viewport height, so the island can run a Google-Maps-style
+        layout (filter bar on top, results panel floating over a full-size map)
+        without the page itself ever scrolling.
+
         The Search island mounts here; data-props hands it the filter options and
         the JSON endpoint. The <noscript> block keeps the page useful (and gives
         crawlers real links) when JavaScript is unavailable.
     --}}
-    <div data-vue="Search" data-props='@json($islandProps)'>
+    <div data-vue="Search" data-props='@json($islandProps)' class="h-full">
         {{-- Server-rendered fallback shown until the island mounts / if JS is off. --}}
         <div class="mx-auto w-full max-w-7xl px-4 py-6">
             <h1 class="text-2xl font-bold tracking-tight">Caută stomatologi</h1>

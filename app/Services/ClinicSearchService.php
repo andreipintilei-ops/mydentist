@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
 class ClinicSearchService
 {
     /** Hard cap so a zoomed-out map can never try to render the whole country. */
-    private const MAX_RESULTS = 300;
+    public const MAX_RESULTS = 300;
 
     /**
      * @param  array<string, mixed>  $filters

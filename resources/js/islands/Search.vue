@@ -1,16 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { Button } from '@/components/ui/button';
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ClinicList from './search/ClinicList.vue';
 import ClinicMap from './search/ClinicMap.vue';
-import SearchFilters from './search/SearchFilters.vue';
+import ResultsSheet from './search/ResultsSheet.vue';
+import SearchTopBar from './search/SearchTopBar.vue';
 import type { SearchProps } from './search/types';
 import { createSearchStore, provideSearch } from './search/useSearch';
 
@@ -19,58 +12,73 @@ const props = defineProps<SearchProps>();
 const search = createSearchStore(props);
 provideSearch(search);
 
-const mobileFiltersOpen = ref(false);
+/**
+ * The floating results panel (22rem wide, 1rem from the edge) hides the map's
+ * left edge on large screens. The map needs the figure to recentre against.
+ */
+const PANEL_OFFSET = 368;
 
-// Populate the list immediately; the map refines by viewport once it loads.
-onMounted(() => search.refresh());
+const isDesktop = ref(false);
+let query: MediaQueryList | null = null;
+
+function syncBreakpoint(event: MediaQueryList | MediaQueryListEvent): void {
+    isDesktop.value = event.matches;
+}
+
+const centerOffsetX = computed(() => (isDesktop.value ? PANEL_OFFSET : 0));
+
+onMounted(() => {
+    query = window.matchMedia('(min-width: 1024px)');
+    syncBreakpoint(query);
+    query.addEventListener('change', syncBreakpoint);
+
+    // Populate the list immediately; the map refines by viewport once it loads.
+    search.refresh();
+});
+
+onBeforeUnmount(() => query?.removeEventListener('change', syncBreakpoint));
 </script>
 
 <template>
-    <div class="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6">
-        <div class="flex items-center justify-between gap-3">
-            <h1 class="text-2xl font-bold tracking-tight">Caută stomatologi</h1>
+    <div class="flex h-full w-full flex-col">
+        <SearchTopBar />
 
-            <!-- Mobile: filters live in a Sheet drawer; desktop shows the sidebar. -->
-            <Sheet v-model:open="mobileFiltersOpen">
-                <SheetTrigger as-child>
-                    <Button variant="outline" size="sm" class="lg:hidden"
-                        >Filtre</Button
+        <!-- The map fills this box; every panel floats above it. Nothing here
+             resizes the map container, so Leaflet never needs invalidateSize(). -->
+        <div class="relative min-h-0 flex-1">
+            <ClinicMap :center-offset-x="centerOffsetX" />
+
+            <!-- Desktop: results float over the map's left edge. -->
+            <aside
+                class="absolute inset-y-4 left-4 z-10 hidden w-[22rem] flex-col overflow-hidden rounded-xl border bg-background shadow-lg lg:flex"
+                aria-label="Rezultate"
+            >
+                <div class="shrink-0 border-b px-4 py-3">
+                    <p class="text-sm font-medium" aria-live="polite">
+                        <span v-if="search.loading.value">Se încarcă…</span>
+                        <span v-else-if="search.capped.value"
+                            >{{ search.count.value }}+ clinici</span
+                        >
+                        <span v-else
+                            >{{ search.count.value }} clinici găsite</span
+                        >
+                    </p>
+                    <p
+                        v-if="search.capped.value"
+                        class="mt-0.5 text-xs text-muted-foreground"
                     >
-                </SheetTrigger>
-                <SheetContent side="left" class="w-80 overflow-y-auto">
-                    <SheetHeader>
-                        <SheetTitle>Filtre</SheetTitle>
-                    </SheetHeader>
-                    <div class="px-4 pb-6">
-                        <SearchFilters />
-                    </div>
-                </SheetContent>
-            </Sheet>
-        </div>
+                        Sunt mai multe decât putem afișa — micșorează zona sau
+                        adaugă filtre.
+                    </p>
+                </div>
 
-        <p class="text-sm text-muted-foreground" aria-live="polite">
-            <span v-if="search.loading.value">Se încarcă…</span>
-            <span v-else>{{ search.count.value }} clinici găsite</span>
-        </p>
-
-        <div class="grid gap-4 lg:grid-cols-[18rem_1fr]">
-            <!-- Desktop filter sidebar -->
-            <aside class="hidden lg:block">
-                <div class="sticky top-4">
-                    <SearchFilters />
+                <div class="min-h-0 flex-1 overflow-y-auto">
+                    <ClinicList />
                 </div>
             </aside>
 
-            <div class="grid gap-4 lg:grid-cols-2 lg:items-stretch">
-                <!-- Map: on top on mobile, right on desktop. Fixed height = no CLS. -->
-                <div class="order-first h-[50vh] lg:order-last lg:h-[70vh]">
-                    <ClinicMap />
-                </div>
-
-                <div class="rounded-xl border lg:h-[70vh] lg:overflow-y-auto">
-                    <ClinicList />
-                </div>
-            </div>
+            <!-- Mobile: the same results as a drag-to-expand bottom sheet. -->
+            <ResultsSheet class="lg:hidden" />
         </div>
     </div>
 </template>

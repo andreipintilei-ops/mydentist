@@ -13,6 +13,10 @@
     // Optional App\Support\Seo\SeoMeta. When present, the seo-head component
     // renders the full title/canonical/OG/JSON-LD and the simple title is skipped.
     'seo' => null,
+    // App-like pages (the /cauta map) fill the viewport exactly: no footer, no
+    // page scroll, and the slot gets the leftover height to size itself against.
+    // 100dvh — not 100vh — or mobile browsers hide the bottom behind the URL bar.
+    'fullBleed' => false,
 ])
 
 <!DOCTYPE html>
@@ -62,9 +66,9 @@
 
         {{ $head ?? '' }}
     </head>
-    <body class="bg-background text-foreground font-sans antialiased">
-        <div class="flex min-h-screen flex-col">
-            <header class="border-b">
+    <body @class(['bg-background text-foreground font-sans antialiased', 'overflow-hidden' => $fullBleed])>
+        <div @class(['flex flex-col', 'h-[100dvh]' => $fullBleed, 'min-h-screen' => ! $fullBleed])>
+            <header class="border-b shrink-0">
                 <div class="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4">
                     <a href="{{ url('/') }}" class="text-lg font-semibold tracking-tight">
                         {{ config('app.name') }}
@@ -84,7 +88,9 @@
                 </div>
             </header>
 
-            <main class="flex-1">
+            {{-- min-h-0 lets this flex child actually shrink, so a full-bleed
+                 child can own the scrolling instead of stretching the page. --}}
+            <main @class(['flex-1', 'min-h-0' => $fullBleed])>
                 @if (session('status'))
                     <div class="mx-auto w-full max-w-6xl px-4 pt-4">
                         <div class="border-primary/40 bg-primary/10 text-foreground rounded-lg border p-4 text-sm" role="status">
@@ -96,11 +102,13 @@
                 {{ $slot }}
             </main>
 
-            <footer class="border-t">
-                <div class="text-muted-foreground mx-auto w-full max-w-6xl px-4 py-8 text-sm">
-                    <p>&copy; {{ date('Y') }} {{ config('app.name') }}</p>
-                </div>
-            </footer>
+            @unless ($fullBleed)
+                <footer class="border-t">
+                    <div class="text-muted-foreground mx-auto w-full max-w-6xl px-4 py-8 text-sm">
+                        <p>&copy; {{ date('Y') }} {{ config('app.name') }}</p>
+                    </div>
+                </footer>
+            @endunless
         </div>
     </body>
 </html>

@@ -79,6 +79,10 @@ class SearchController extends Controller
 
         return response()->json([
             'count' => $clinics->count(),
+            // The service caps the result set, so `count` can be a ceiling rather
+            // than a true total. Say so, and the UI renders "300+" instead of
+            // claiming an exact number that quietly hides the rest.
+            'capped' => $clinics->count() >= ClinicSearchService::MAX_RESULTS,
             'clinics' => $clinics->map(fn (Clinic $clinic) => [
                 'id' => $clinic->id,
                 'name' => $clinic->name,

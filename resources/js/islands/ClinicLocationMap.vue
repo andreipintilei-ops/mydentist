@@ -89,8 +89,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <!-- Fixed aspect ratio reserves space so lazy Leaflet never shifts layout. -->
-    <div class="relative aspect-video w-full overflow-hidden rounded-xl border">
+    <!--
+        Fixed aspect ratio reserves space so lazy Leaflet never shifts layout.
+        `isolate` keeps Leaflet's z-index 200–1000 panes from escaping into the
+        root stacking context and painting over dialogs and dropdowns — see the
+        same note in islands/search/ClinicMap.vue.
+    -->
+    <div
+        class="relative isolate aspect-video w-full overflow-hidden rounded-xl border"
+    >
         <div
             ref="container"
             class="h-full w-full"

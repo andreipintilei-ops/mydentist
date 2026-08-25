@@ -34,6 +34,13 @@ export interface Bounds {
     max_lng: number;
 }
 
+/** An active filter shown as a removable chip in the search bar. */
+export interface FilterChip {
+    key: string;
+    label: string;
+    clear: () => void;
+}
+
 export interface Filters {
     q: string;
     city_id: number | null;
