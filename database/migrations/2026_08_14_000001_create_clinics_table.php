@@ -80,19 +80,31 @@ return new class extends Migration
         //     ST_Distance_Sphere() expects POINT(LONGITUDE, LATITUDE), so the
         //     column stores POINT(lng, lat). No SRID clause (unsupported here).
         //
-        //   MySQL 8 — SRID 4326 is geographic and uses EPSG axis order, i.e.
-        //     LATITUDE FIRST: POINT(lat, lng) wrapped in ST_SRID(..., 4326).
+        //   MySQL 8+ — SRID 4326 is geographic, but POINT() itself is NOT axis-
+        //     aware: it builds a planar (x, y) pair and ST_SRID() only re-tags the
+        //     SRID without reordering. For a geographic SRS MySQL reads x as the
+        //     LONGITUDE and y as the LATITUDE, so the column stores
+        //     POINT(lng, lat) — the same argument order as MariaDB.
+        //
+        //     Careful: ST_GeomFromText(wkt, 4326) is the opposite. It DOES honour
+        //     EPSG axis order, so its WKT is "lat lng". That asymmetry is why
+        //     scopeNear() feeds POINT() (lng, lat) but its MBRContains polygon
+        //     (lat, lng) — verify any change with ST_Latitude()/ST_Longitude(),
+        //     never with ST_Distance_Sphere(), which returns plausible-looking
+        //     numbers even when both operands are swapped the same way.
         //
         // Get either one backwards and every clinic lands in the ocean off West
         // Africa — the classic geo bug.
         if (DB::getDriverName() === 'mysql') {
-            // MySQL 8: SRID 4326 is geographic and enforces EPSG axis order, so
-            // POINT(lat, lng). The column is a STORED generated column derived
-            // from lat/lng — nothing to maintain in application code.
+            // The column is a STORED generated column derived from lat/lng —
+            // nothing to maintain in application code. MySQL rejects the `SRID n`
+            // column attribute on a generated column, so the SRID is carried by
+            // ST_SRID() inside the expression, and NOT NULL (required by the
+            // SPATIAL INDEX) has to follow the STORED keyword.
             DB::statement('ALTER TABLE clinics
-                ADD COLUMN location POINT SRID 4326 NOT NULL
-                    GENERATED ALWAYS AS (ST_SRID(POINT(lat, lng), 4326)) STORED AFTER lng,
-                ADD SPATIAL INDEX clinics_location_spatial (location)');
+                ADD COLUMN location POINT
+                    GENERATED ALWAYS AS (ST_SRID(POINT(lng, lat), 4326)) STORED NOT NULL AFTER lng');
+            DB::statement('ALTER TABLE clinics ADD SPATIAL INDEX clinics_location_spatial (location)');
         } else {
             // MariaDB 10.4: ST_Distance_Sphere expects POINT(lng, lat). MariaDB
             // forbids NOT NULL on a generated column, yet a SPATIAL INDEX requires

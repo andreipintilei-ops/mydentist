@@ -192,10 +192,12 @@ class Clinic extends Model
      * cannot, so a PHP-computed bounding box prefilters via MBRContains (index-
      * backed), then ST_Distance_Sphere refines and sorts the survivors.
      *
-     * AXIS ORDER is the whole game and it differs by engine — this method is the
-     * ONLY place (besides the clinics migration) that knows about it:
-     *   - MySQL 8  : geographic SRID 4326, coordinates are (lat, lng).
-     *   - MariaDB  : planar, ST_Distance_Sphere wants (lng, lat).
+     * AXIS ORDER is the whole game — this method is the ONLY place (besides the
+     * clinics migration) that knows about it. Both engines want POINT(lng, lat):
+     * MariaDB because it is planar, MySQL because POINT() builds a planar (x, y)
+     * pair and a geographic SRS reads x as longitude. ST_GeomFromText(wkt, 4326)
+     * is the exception — it honours EPSG axis order, so its WKT is "lat lng",
+     * which is why the polygon below is built (lat, lng) on MySQL only.
      *
      * @param  Builder<static>  $query
      * @return Builder<static>
@@ -217,19 +219,20 @@ class Clinic extends Model
         $table = $this->getTable();
 
         if (DB::connection($this->getConnectionName())->getDriverName() === 'mysql') {
-            // (lat, lng) order; envelope and point both tagged SRID 4326.
+            // WKT polygon is (lat, lng) — ST_GeomFromText honours EPSG axis order.
+            // POINT() does not, so it takes (lng, lat). Both tagged SRID 4326.
             $polygon = $this->boxPolygon($minLat, $minLng, $maxLat, $maxLng);
 
             return $query
                 ->select("{$table}.*")
                 ->selectRaw(
                     'ST_Distance_Sphere(location, ST_SRID(POINT(?, ?), 4326)) AS distance_m',
-                    [$lat, $lng]
+                    [$lng, $lat]
                 )
                 ->whereRaw('MBRContains(ST_GeomFromText(?, 4326), location)', [$polygon])
                 ->whereRaw(
                     'ST_Distance_Sphere(location, ST_SRID(POINT(?, ?), 4326)) <= ?',
-                    [$lat, $lng, $radiusM]
+                    [$lng, $lat, $radiusM]
                 )
                 ->orderBy('distance_m');
         }
